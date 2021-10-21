@@ -188,33 +188,50 @@ EOF
 # Runs a command while chrooted into a snapshot
 command_run(){
 		if [[ "$1" = '--help' ]]; then cat <<EOF
-Usage: snup run [snapshot] [command]
+Usage: snup run [options] [snapshot] [command]
 
 Runs a command while chrooted into a snapshot. Before chrooting, the entries 
 in /etc/fstab are automatically mounted. If no command is provided, it runs a 
 shell in the chrooted environment.
+
+Options:
+    --ro    Change the snapshot to read-only before entering (default)
+    --rw    Change the snapshot to writable before entering
 EOF
 	return
 	fi
+
+	# Parse options
+	local ro=true
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		--ro)
+			ro=true
+			;;
+		--rw)
+			ro=false
+			;;
+		-*)
+			echo "Unrecognized option: $1"
+			echo "Run 'snup run --help' for more information"
+			exit 1
+			;;
+		*)
+			break
+			;;
+		esac
+		shift 1
+	done
 
 	parse_range "$1"
 	
 	for i in ${selected[@]}; do
 		local rootdir=/snapshots/system/$(ls /snapshots/system | grep "_${i}_")
-		#for dir in /proc /sys /dev /run /tmp; do
-		#	mount --rbind $dir $rootdir$dir
-		#	mount --make-rslave $rootdir$dir
-		#done
-
+		btrfs property set -ts $rootdir ro $ro
 		mount_subvolume $rootdir
-		
 		chroot $rootdir ${*:2}
-
-		#for dir in /proc /sys /dev /run /tmp; do
-		#	umount -R $rootdir$dir
-		#done
-
 		unmount_subvolume $rootdir
+		btrfs property set -ts $rootdir ro true
 	done
 }
 
