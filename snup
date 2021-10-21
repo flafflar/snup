@@ -6,7 +6,9 @@ Usage: snup [command] [options]
 
 The available commands are:
     snap    Takes a snapshot
-	delete  Deletes snapshots
+    list    Lists snapshots
+    delete  Deletes snapshots
+    run     Chroots into snapshots and runs commands
 
 Run snup [command] --help for more information about that command
 EOF
