@@ -120,6 +120,33 @@ EOF
 	done
 }
 
+# Chroots into a snapshot
+command_chroot(){
+		if [[ "$1" = '--help' ]]; then cat <<EOF
+Usage: snup chroot [snapshot]
+
+Chroots into a snapshot.
+EOF
+	return
+	fi
+
+	parse_range "$1"
+	
+	for i in ${selected[@]}; do
+		local rootdir=/snapshots/system/$(ls /snapshots/system | grep "_${i}_")
+		for dir in /proc /sys /dev /run /tmp; do
+			mount --rbind $dir $rootdir$dir
+			mount --make-rslave $rootdir$dir
+		done
+		
+		chroot $rootdir
+
+		for dir in /proc /sys /dev /run /tmp; do
+			umount -R $rootdir$dir
+		done
+	done
+}
+
 # Start parsing arguments
 case $1 in
 --help)
@@ -133,6 +160,9 @@ list)
 	;;
 delete)
 	delete "${*:2}"
+	;;
+chroot)
+	command_chroot "${*:2}"
 	;;
 *)
 	echo "Unknown command: $1"
