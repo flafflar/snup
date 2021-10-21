@@ -13,7 +13,6 @@ EOF
 
 # Takes a snapshot of '/' into '/snapshots/system/<date>_<number>_<comment>'
 snap(){
-	#if [[ $1 = '--help']]; then
 	if [[ "$1" = '--help' ]]; then cat <<EOF
 Usage: snup snap [comment]
 
@@ -25,9 +24,7 @@ EOF
 
 	local date=$(date +%Y-%m-%d)
 	local number=$(( $(ls /snapshots/system | cut -d '_' -f 2 | sort -n | tail -n 1) + 1 ))
-	printf "Enter the snapshot's comment: "
-	read
-	local comment=$REPLY
+	local comment=$1
 
 	btrfs subvolume snapshot -r / /snapshots/system/${date}_${number}_${comment}
 }
