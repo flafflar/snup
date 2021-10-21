@@ -7,6 +7,7 @@ Usage: snup [command] [options]
 The available commands are:
     snap    Takes a snapshot
     list    Lists snapshots
+    grep    Searches through snapshot comments
     delete  Deletes snapshots
     run     Chroots into snapshots and runs commands
 
@@ -102,6 +103,16 @@ parse_range(){
 	fi
 }
 
+# Lists the selected snapshots
+list_selected(){
+	printf "Number\tDate      \tComment\n"
+	for i in ${selected[@]}; do
+		local d=$(get_date $i)
+		local c=$(get_comment $i)
+		printf "$i\t$d\t$c\n"
+	done
+}
+
 # Takes a snapshot of '/' into '/snapshots/system/<date>_<number>_<comment>'
 snap(){
 	if [[ "$1" = '--help' ]]; then cat <<EOF
@@ -137,12 +148,25 @@ EOF
 		selected=(${all[@]})
 	fi
 	
-	printf "Number\tDate      \tComment\n"
-	for i in ${selected[@]}; do
-		local d=$(get_date $i)
-		local c=$(get_comment $i)
-		printf "$i\t$d\t$c\n"
-	done	
+	list_selected
+}
+
+command_grep(){
+		if [[ "$1" = '--help' ]]; then cat <<EOF
+Usage: snup grep [expression]
+
+Greps against snapshot comments and lists the results
+EOF
+	return
+	fi
+
+	for s in $(ls /snapshots/system); do
+		if echo $s | cut -d'_' -f 3 | grep "${@:1}" >/dev/null; then
+			selected+=($(echo $s | cut -d'_' -f 2))
+		fi
+	done
+
+	list_selected
 }
 
 # Deletes a snapshot
@@ -204,6 +228,9 @@ snap)
 	;;
 list)
 	list "${@:2}"
+	;;
+grep)
+	command_grep "${@:2}"
 	;;
 delete)
 	delete "${@:2}"
