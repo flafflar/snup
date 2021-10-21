@@ -1,7 +1,28 @@
 #!/bin/sh
 
+usage(){
+	cat <<"EOF"
+Usage: snup [command] [options]
+
+The available commands are:
+    snap    Takes a snapshot
+
+Run snup [command] --help for more information about that command
+EOF
+}
+
 # Takes a snapshot of '/' into '/snapshots/system/<date>_<number>_<comment>'
 snap(){
+	#if [[ $1 = '--help']]; then
+	if [[ "$1" = '--help' ]]; then cat <<EOF
+Usage: snup snap [comment]
+
+Takes a snapshot of '/'. Optionally, you can provide a brief comment to 
+remember what the snapshot was about.
+EOF
+	return
+	fi
+
 	local date=$(date +%Y-%m-%d)
 	local number=$(( $(ls /snapshots/system | cut -d '_' -f 2 | sort -n | tail -n 1) + 1 ))
 	printf "Enter the snapshot's comment: "
@@ -10,3 +31,16 @@ snap(){
 
 	btrfs subvolume snapshot -r / /snapshots/system/${date}_${number}_${comment}
 }
+
+# Start parsing arguments
+case $1 in
+--help)
+	usage
+	;;
+snap)
+	snap ${*:2}
+	;;
+*)
+	echo "Unknown command: $1"
+	exit 1;
+esac
