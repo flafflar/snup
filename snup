@@ -120,12 +120,12 @@ EOF
 	done
 }
 
-# Chroots into a snapshot
-command_chroot(){
+# Runs a command while chrooted into a snapshot
+command_run(){
 		if [[ "$1" = '--help' ]]; then cat <<EOF
-Usage: snup chroot [snapshot]
+Usage: snup run [snapshot] [command]
 
-Chroots into a snapshot.
+Runs a command while chrooted into a snapshot.
 EOF
 	return
 	fi
@@ -139,12 +139,25 @@ EOF
 			mount --make-rslave $rootdir$dir
 		done
 		
-		chroot $rootdir
+		chroot $rootdir ${*:2}
 
 		for dir in /proc /sys /dev /run /tmp; do
 			umount -R $rootdir$dir
 		done
 	done
+}
+
+# Chroots into a snapshot
+command_chroot(){
+		if [[ "$1" = '--help' ]]; then cat <<EOF
+Usage: snup chroot [snapshot]
+
+Chroots into a snapshot.
+EOF
+	return
+	fi
+
+	command_run $1 $SHELL -i
 }
 
 # Start parsing arguments
@@ -163,6 +176,9 @@ delete)
 	;;
 chroot)
 	command_chroot "${*:2}"
+	;;
+run)
+	command_run ${*:2}
 	;;
 *)
 	echo "Unknown command: $1"
