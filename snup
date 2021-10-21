@@ -12,13 +12,24 @@ Run snup [command] --help for more information about that command
 EOF
 }
 
+# Returns the date of a snapshot based on its number
+get_date(){
+	ls /snapshots/system | awk -F'_' -v x=$1 '{if($2 == x){print $1}}'
+}
+
+# Returns the comment of a snapshot based on its number
+get_comment(){
+	ls /snapshots/system | awk -F'_' -v x=$1 '{if($2 == x){print $3}}'
+}
+
 # Parses a snapshot range description
 # A snapshot range can be described with numbers (e.g. 2-8) 
 # or dates (e.g. 2021/09/27-2021/10/10)
 # Individual snapshots can be described with a number (e.g. 13)
 # In case a single date or comment is given, all snapshots with the given date
 # or comment are matched
-declare -a selected
+declare -a selected=()
+declare -a all=($(ls /snapshots/system | cut -d'_' -f 2))
 parse_range(){
 	if [[ $1 =~ ^[0-9]+-[0-9]+$ ]]; then # Numerical range
 		local start=$(echo $1 | cut -d'-' -f 1)
@@ -68,6 +79,31 @@ EOF
 	btrfs subvolume snapshot -r / /snapshots/system/${date}_${number}_${comment}
 }
 
+# Lists information about snapshots
+list(){
+	if [[ "$1" = '--help' ]]; then cat <<EOF
+Usage: snup list [snapshots]
+
+Lists information about snapshots. If no arguments are given, lists all 
+snapshots. Else, it lists only the selected range of snapshots
+EOF
+	return
+	fi
+
+	if [[ -n $1 ]]; then
+		parse_range "$1"
+	else
+		selected=(${all[@]})
+	fi
+	
+	printf "Number\tDate      \tComment\n"
+	for i in ${selected[@]}; do
+		local d=$(get_date $i)
+		local c=$(get_comment $i)
+		printf "$i\t$d\t$c\n"
+	done	
+}
+
 # Deletes a snapshot
 delete(){
 	if [[ "$1" = '--help' ]]; then cat <<EOF
@@ -91,6 +127,9 @@ case $1 in
 	;;
 snap)
 	snap "${*:2}"
+	;;
+list)
+	list "${*:2}"
 	;;
 delete)
 	delete "${*:2}"
