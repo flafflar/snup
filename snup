@@ -25,7 +25,7 @@ parse_range(){
 		local end=$(echo $1 | cut -d'-' -f 2)
 		while [[ $start -le $end ]]; do
 			selected+=($start)
-			(( i++ ))
+			(( start++ ))
 		done
 	elif [[ $1 =~ - ]]; then # Date range
 		local date1=$(date +%s -d "$(echo $1 | cut -d'-' -f 1)")
