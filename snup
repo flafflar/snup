@@ -166,19 +166,19 @@ case $1 in
 	usage
 	;;
 snap)
-	snap "${*:2}"
+	snap "${@:2}"
 	;;
 list)
-	list "${*:2}"
+	list "${@:2}"
 	;;
 delete)
-	delete "${*:2}"
+	delete "${@:2}"
 	;;
 chroot)
-	command_chroot "${*:2}"
+	command_chroot "${@:2}"
 	;;
 run)
-	command_run ${*:2}
+	command_run "${@:2}"
 	;;
 *)
 	echo "Unknown command: $1"
