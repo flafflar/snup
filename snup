@@ -22,6 +22,32 @@ get_comment(){
 	ls /snapshots/system | awk -F'_' -v x=$1 '{if($2 == x){print $3}}'
 }
 
+mount_subvolume(){
+	# Mount the special filesystems
+	for dir in /proc /sys /dev /run /tmp; do
+		mount --rbind $dir $1$dir
+		mount --make-rslave $1$dir
+	done
+
+	# Mount entries from the fstab
+	cat $1/etc/fstab | grep '^[^#]' | awk -v root=$1 '
+	/^UUID=/ {if ($2 != "/"){ system("mount /dev/disk/by-uuid/" substr($1,6) " " root $2 " -t " $3 " -o " $4) }}
+	/^PARTUUID=/ {if ($2 != "/"){ system("mount /dev/disk/by-partuuid/" substr($1,10) " " root $2 " -t " $3 " -o " $4) }}
+	/^LABEL=/ {if ($2 != "/"){ system("mount /dev/disk/by-label/" substr($1,7) " " root $2 " -t " $3 " -o " $4) }}
+	/^PARTLABEL=/ {if ($2 != "/"){ system("mount /dev/disk/by-partlabel/" substr($1,11) " " root $2 " -t " $3 " -o " $4) }}
+	'	
+}
+
+unmount_subvolume(){
+	# Unmount entries from the fstab
+	tac $1/etc/fstab | grep '^[^#]' | awk -v root=$1 '{if ($2 != "/"){ system("umount " root $2) }}'
+
+	# Unount the special filesystems
+	for dir in /proc /sys /dev /run /tmp; do
+		umount -R $1$dir
+	done
+}
+
 # Parses a snapshot range description
 # A snapshot range can be described with numbers (e.g. 2-8) 
 # or dates (e.g. 2021/09/27-2021/10/10)
@@ -139,16 +165,20 @@ EOF
 	
 	for i in ${selected[@]}; do
 		local rootdir=/snapshots/system/$(ls /snapshots/system | grep "_${i}_")
-		for dir in /proc /sys /dev /run /tmp; do
-			mount --rbind $dir $rootdir$dir
-			mount --make-rslave $rootdir$dir
-		done
+		#for dir in /proc /sys /dev /run /tmp; do
+		#	mount --rbind $dir $rootdir$dir
+		#	mount --make-rslave $rootdir$dir
+		#done
+
+		mount_subvolume $rootdir
 		
 		chroot $rootdir ${*:2}
 
-		for dir in /proc /sys /dev /run /tmp; do
-			umount -R $rootdir$dir
-		done
+		#for dir in /proc /sys /dev /run /tmp; do
+		#	umount -R $rootdir$dir
+		#done
+
+		unmount_subvolume $rootdir
 	done
 }
 
