@@ -229,7 +229,7 @@ EOF
 		local rootdir=/snapshots/system/$(ls /snapshots/system | grep "_${i}_")
 		btrfs property set -ts $rootdir ro $ro
 		mount_subvolume $rootdir
-		chroot $rootdir ${*:2}
+		chroot $rootdir "${@:2}"
 		unmount_subvolume $rootdir
 		btrfs property set -ts $rootdir ro true
 	done
