@@ -151,17 +151,14 @@ command_run(){
 		if [[ "$1" = '--help' ]]; then cat <<EOF
 Usage: snup run [snapshot] [command]
 
-Runs a command while chrooted into a snapshot.
+Runs a command while chrooted into a snapshot. Before chrooting, the entries 
+in /etc/fstab are automatically mounted. If no command is provided, it runs a 
+shell in the chrooted environment.
 EOF
 	return
 	fi
 
 	parse_range "$1"
-
-	if [[ $# -lt 2 ]]; then
-		echo 'No command specified'
-		exit 1
-	fi
 	
 	for i in ${selected[@]}; do
 		local rootdir=/snapshots/system/$(ls /snapshots/system | grep "_${i}_")
@@ -182,19 +179,6 @@ EOF
 	done
 }
 
-# Chroots into a snapshot
-command_chroot(){
-		if [[ "$1" = '--help' ]]; then cat <<EOF
-Usage: snup chroot [snapshot]
-
-Chroots into a snapshot.
-EOF
-	return
-	fi
-
-	command_run $1 $SHELL -i
-}
-
 # Start parsing arguments
 case $1 in
 --help)
@@ -208,9 +192,6 @@ list)
 	;;
 delete)
 	delete "${@:2}"
-	;;
-chroot)
-	command_chroot "${@:2}"
 	;;
 run)
 	command_run "${@:2}"
