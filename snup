@@ -6,9 +6,48 @@ Usage: snup [command] [options]
 
 The available commands are:
     snap    Takes a snapshot
+	delete  Deletes snapshots
 
 Run snup [command] --help for more information about that command
 EOF
+}
+
+# Parses a snapshot range description
+# A snapshot range can be described with numbers (e.g. 2-8) 
+# or dates (e.g. 2021/09/27-2021/10/10)
+# Individual snapshots can be described with a number (e.g. 13)
+# In case a single date or comment is given, all snapshots with the given date
+# or comment are matched
+declare -a selected
+parse_range(){
+	if [[ $1 =~ ^[0-9]+-[0-9]+$ ]]; then # Numerical range
+		local start=$(echo $1 | cut -d'-' -f 1)
+		local end=$(echo $1 | cut -d'-' -f 2)
+		while [[ $start -le $end ]]; do
+			selected+=($start)
+			(( i++ ))
+		done
+	elif [[ $1 =~ - ]]; then # Date range
+		local date1=$(date +%s -d "$(echo $1 | cut -d'-' -f 1)")
+		local date2=$(date +%s -d "$(echo $1 | cut -d'-' -f 2)")
+		for s in $(ls /snapshots/system); do
+			local date=$(date +%s -d $(echo $s | cut -d'_' -f 1))
+			if [[ $date -ge $date1 && $date -le $date2 ]]; then
+				selected+=($(echo $s | cut -d'_' -f 2))
+			fi
+		done
+	elif [[ $1 =~ ^[0-9]+$ ]]; then # Individual number
+		selected+=($1)
+	elif ls /snapshots/system | cut -d'_' -f 3 | grep $1 >/dev/null; then # Comment
+		for i in $(ls /snapshots/system | grep "$1$" | cut -d'_' -f 2); do
+			selected+=($i)
+		done
+	else # Single date
+		local date=$(date +%Y-%m-%d -d "$1")
+		for i in $(ls /snapshots/system | grep "^$1" | cut -d'_' -f 2); do
+			selected+=($i)
+		done
+	fi
 }
 
 # Takes a snapshot of '/' into '/snapshots/system/<date>_<number>_<comment>'
@@ -29,15 +68,35 @@ EOF
 	btrfs subvolume snapshot -r / /snapshots/system/${date}_${number}_${comment}
 }
 
+# Deletes a snapshot
+delete(){
+	if [[ "$1" = '--help' ]]; then cat <<EOF
+Usage: snup delete [snapshots]
+
+Deletes a snapshot or a range of snapshots.
+EOF
+	return
+	fi
+
+	parse_range "$1"
+	for i in ${selected[@]}; do
+		btrfs subvolume delete /snapshots/system/$(ls /snapshots/system | grep "_${i}_")
+	done
+}
+
 # Start parsing arguments
 case $1 in
 --help)
 	usage
 	;;
 snap)
-	snap ${*:2}
+	snap "${*:2}"
+	;;
+delete)
+	delete "${*:2}"
 	;;
 *)
 	echo "Unknown command: $1"
+	echo "Try snup --help for more info"
 	exit 1;
 esac
