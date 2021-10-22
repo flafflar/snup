@@ -1,5 +1,5 @@
 install:
-	install -vm0755 snup /usr/bin
+	install -vm0755 snup $(DESTDIR)/usr/bin
 	
 uninstall:
-	rm -vf /usr/bin/snup
+	rm -vf $(DESTDIR)/usr/bin/snup
