@@ -7,7 +7,7 @@ Usage: snup [command] [options]
 The available commands are:
     snap    Takes a snapshot
     list    Lists snapshots
-    grep    Searches through snapshot comments
+    search  Searches through snapshot comments
     delete  Deletes snapshots
     run     Chroots into snapshots and runs commands
 
@@ -164,11 +164,11 @@ EOF
 	list_selected
 }
 
-command_grep(){
+command_search(){
 		if [[ "$1" = '--help' ]]; then cat <<EOF
-Usage: snup grep [expression]
+Usage: snup search [expression]
 
-Greps against snapshot comments and lists the results
+Searches against snapshot comments and lists the results
 EOF
 	return
 	fi
@@ -259,8 +259,8 @@ snap)
 list)
 	command_list "${@:2}"
 	;;
-grep)
-	command_grep "${@:2}"
+search)
+	command_search "${@:2}"
 	;;
 delete)
 	command_delete "${@:2}"
