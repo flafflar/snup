@@ -6,6 +6,7 @@ Usage: snup [command] [options]
 
 The available commands are:
     snap    Takes a snapshot
+    restore Restores a snapshot
     list    Lists snapshots
     search  Searches through snapshot comments
     delete  Deletes snapshots
@@ -144,6 +145,25 @@ EOF
 	btrfs subvolume snapshot -r / /snapshots/system/${date}_${number}_${comment}
 }
 
+# Restores a snapshot
+command_restore(){
+		if [[ "$1" = '--help' ]]; then cat <<EOF
+Usage: snup restore [snapshot]
+
+Restores a snapshot.
+EOF
+	return
+	fi
+
+	parse_range "$1"
+	
+	mkdir -p /run/snup/mnt
+	mount /dev/nvme0n1p5 /run/snup/mnt
+	mv /run/snup/mnt/system /run/snup/mnt/system~
+	btrfs subvolume snapshot /snapshots/system/$(ls /snapshots/system | grep _${selected}_) /run/snup/mnt/system
+	umount /run/snup/mnt
+}
+
 # Lists information about snapshots
 command_list(){
 	if [[ "$1" = '--help' ]]; then cat <<EOF
@@ -255,6 +275,9 @@ case $1 in
 	;;
 snap)
 	command_snap "${@:2}"
+	;;
+restore)
+	command_restore "${@:2}"
 	;;
 list)
 	command_list "${@:2}"
