@@ -127,7 +127,7 @@ list_selected(){
 }
 
 # Takes a snapshot of '/' into '/snapshots/system/<date>_<number>_<comment>'
-snap(){
+command_snap(){
 	if [[ "$1" = '--help' ]]; then cat <<EOF
 Usage: snup snap [comment]
 
@@ -145,7 +145,7 @@ EOF
 }
 
 # Lists information about snapshots
-list(){
+command_list(){
 	if [[ "$1" = '--help' ]]; then cat <<EOF
 Usage: snup list [snapshots]
 
@@ -183,7 +183,7 @@ EOF
 }
 
 # Deletes a snapshot
-delete(){
+command_delete(){
 	if [[ "$1" = '--help' ]]; then cat <<EOF
 Usage: snup delete [snapshots]
 
@@ -254,16 +254,16 @@ case $1 in
 	usage
 	;;
 snap)
-	snap "${@:2}"
+	command_snap "${@:2}"
 	;;
 list)
-	list "${@:2}"
+	command_list "${@:2}"
 	;;
 grep)
 	command_grep "${@:2}"
 	;;
 delete)
-	delete "${@:2}"
+	command_delete "${@:2}"
 	;;
 run)
 	command_run "${@:2}"
