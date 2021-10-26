@@ -1,0 +1,3 @@
+DRIVE=/dev/nvme0n1p5
+SUBVOL=/system
+SNAPSHOTS=/snapshots/system

@@ -3,39 +3,39 @@
 usage(){
 	case "$1" in
 	snap) cat <<EOF
-Usage: snup snap [comment]
+Usage: snup [profile] snap [comment]
 
 Takes a snapshot of '/'. Optionally, you can provide a brief comment to 
 remember what the snapshot was about.
 EOF
 	;;
 	restore) cat <<EOF
-Usage: snup restore [snapshot]
+Usage: snup [profile] restore [snapshot]
 
 Restores a snapshot.
 EOF
 	;;
 	list) cat <<EOF
-Usage: snup list [snapshots]
+Usage: snup [profile] list [snapshots]
 
 Lists information about snapshots. If no arguments are given, lists all 
 snapshots. Else, it lists only the selected range of snapshots
 EOF
 	;;
 	search) cat <<EOF
-Usage: snup search [expression]
+Usage: snup [profile] search [expression]
 
 Searches against snapshot comments and lists the results
 EOF
 	;;
 	delete) cat <<EOF
-Usage: snup delete [snapshots]
+Usage: snup [profile] delete [snapshots]
 
 Deletes a snapshot or a range of snapshots.
 EOF
 	;;
 	run) cat <<EOF
-Usage: snup run [options] [snapshot] [command]
+Usage: snup [profile] run [options] [snapshot] [command]
 
 Runs a command while chrooted into a snapshot. Before chrooting, the entries 
 in /etc/fstab are automatically mounted. If no command is provided, it runs a 
@@ -65,7 +65,7 @@ EOF
 
 # Checks if a snapshot exists based on its number
 check_existense(){
-	if ls /snapshots/system | cut -d'_' -f 2 | grep $1 >/dev/null; then
+	if ls $SNAPSHOTS | cut -d'_' -f 2 | grep $1 >/dev/null; then
 		return 0
 	else
 		return 1
@@ -74,12 +74,12 @@ check_existense(){
 
 # Returns the date of a snapshot based on its number
 get_date(){
-	ls /snapshots/system | awk -F'_' -v x=$1 '{if($2 == x){print $1}}'
+	ls $SNAPSHOTS | awk -F'_' -v x=$1 '{if($2 == x){print $1}}'
 }
 
 # Returns the comment of a snapshot based on its number
 get_comment(){
-	ls /snapshots/system | awk -F'_' -v x=$1 '{if($2 == x){print $3}}'
+	ls $SNAPSHOTS | awk -F'_' -v x=$1 '{if($2 == x){print $3}}'
 }
 
 mount_subvolume(){
@@ -108,6 +108,15 @@ unmount_subvolume(){
 	done
 }
 
+load_profile(){
+    if ! [[ -f /etc/snup/$1.profile ]]; then
+        echo "Profile '$1' does not exist"
+        exit 1
+    fi
+
+    source /etc/snup/$1.profile
+}
+
 # Parses a snapshot range description
 # A snapshot range can be described with numbers (e.g. 2-8) 
 # or dates (e.g. 2021/09/27-2021/10/10). Also, the notation <number>+ can be 
@@ -116,11 +125,10 @@ unmount_subvolume(){
 # In case a single date or comment is given, all snapshots with the given date
 # or comment are matched
 declare -a selected=()
-declare -a all=($(ls /snapshots/system | cut -d'_' -f 2))
 parse_range(){
 	if [[ $1 =~ ^[0-9]+\+$ ]]; then # Number till end
 		local start=$(echo $1 | cut -d'+' -f 1)
-		local end=$(ls /snapshots/system | cut -d'_' -f 2 | sort -n | tail -n 1)
+		local end=$(ls $SNAPSHOTS | cut -d'_' -f 2 | sort -n | tail -n 1)
 		while [[ $start -le $end ]]; do
 			if check_existense $start; then
 				selected+=($start)
@@ -136,8 +144,8 @@ parse_range(){
 			fi
 			(( start++ ))
 		done
-	elif ls /snapshots/system | cut -d'_' -f 3 | grep "$1$" >/dev/null; then # Comment
-		for i in $(ls /snapshots/system | grep "$1$" | cut -d'_' -f 2); do
+	elif ls $SNAPSHOTS | cut -d'_' -f 3 | grep "$1$" >/dev/null; then # Comment
+		for i in $(ls $SNAPSHOTS | grep "$1$" | cut -d'_' -f 2); do
 			selected+=($i)
 		done
 	elif [[ $1 =~ ^[0-9]+[-/][0-9]+[-/][0-9]+-[0-9]+[-/][0-9]+[-/][0-9]+$ ]]; then # Date range
@@ -148,7 +156,7 @@ parse_range(){
 			local date1=$(date +%s -d "$(echo $1 | cut -d'-' -f 1-3)")
 			local date2=$(date +%s -d "$(echo $1 | cut -d'-' -f 4-6)")
 		fi
-		for s in $(ls /snapshots/system); do
+		for s in $(ls $SNAPSHOTS); do
 			local date=$(date +%s -d $(echo $s | cut -d'_' -f 1))
 			if [[ $date -ge $date1 && $date -le $date2 ]]; then
 				selected+=($(echo $s | cut -d'_' -f 2))
@@ -158,7 +166,7 @@ parse_range(){
 		selected+=($1)
 	else # Single date
 		local date=$(date +%Y-%m-%d -d "$1")
-		for i in $(ls /snapshots/system | grep ^$date | cut -d'_' -f 2); do
+		for i in $(ls $SNAPSHOTS | grep ^$date | cut -d'_' -f 2); do
 			selected+=($i)
 		done
 	fi
@@ -174,24 +182,23 @@ list_selected(){
 	done
 }
 
-# Takes a snapshot of '/' into '/snapshots/system/<date>_<number>_<comment>'
+# Takes a snapshot of '/' into '$SNAPSHOTS/<date>_<number>_<comment>'
 command_snap(){
 	local date=$(date +%Y-%m-%d)
-	local number=$(( $(ls /snapshots/system | cut -d '_' -f 2 | sort -n | tail -n 1) + 1 ))
+	local number=$(( $(ls $SNAPSHOTS | cut -d '_' -f 2 | sort -n | tail -n 1) + 1 ))
 	local comment=$1
 
-	btrfs subvolume snapshot -r / /snapshots/system/${date}_${number}_${comment}
+	btrfs subvolume snapshot -r / $SNAPSHOTS/${date}_${number}_${comment}
 }
 
 # Restores a snapshot
 command_restore(){
-
 	parse_range "$1"
 	
 	mkdir -p /run/snup/mnt
-	mount /dev/nvme0n1p5 /run/snup/mnt
-	mv /run/snup/mnt/system /run/snup/mnt/system~
-	btrfs subvolume snapshot /snapshots/system/$(ls /snapshots/system | grep _${selected}_) /run/snup/mnt/system
+	mount $DRIVE /run/snup/mnt
+	mv /run/snup/mnt/$SUBVOL /run/snup/mnt/${SUBVOL}~
+	btrfs subvolume snapshot $SNAPSHOTS/$(ls $SNAPSHOTS | grep _${selected}_) /run/snup/mnt/$SUBVOL
 	umount /run/snup/mnt
 }
 
@@ -207,8 +214,7 @@ command_list(){
 }
 
 command_search(){
-
-	for s in $(ls /snapshots/system); do
+	for s in $(ls $SNAPSHOTS); do
 		if echo $s | cut -d'_' -f 3 | grep "${@:1}" >/dev/null; then
 			selected+=($(echo $s | cut -d'_' -f 2))
 		fi
@@ -221,7 +227,7 @@ command_search(){
 command_delete(){
 	parse_range "$1"
 	for i in ${selected[@]}; do
-		btrfs subvolume delete /snapshots/system/$(ls /snapshots/system | grep "_${i}_")
+		btrfs subvolume delete $SNAPSHOTS/$(ls $SNAPSHOTS | grep "_${i}_")
 	done
 }
 
@@ -252,7 +258,7 @@ command_run(){
 	parse_range "$1"
 	
 	for i in ${selected[@]}; do
-		local rootdir=/snapshots/system/$(ls /snapshots/system | grep "_${i}_")
+		local rootdir=$SNAPSHOTS/$(ls $SNAPSHOTS | grep "_${i}_")
 		btrfs property set -ts $rootdir ro $ro
 		mount_subvolume $rootdir
 		chroot $rootdir "${@:2}"
@@ -267,6 +273,11 @@ if [[ $1 == '--help' ]]; then
 fi
 
 # Start parsing arguments
+load_profile "$1"
+shift
+
+declare -a all=($(ls $SNAPSHOTS | cut -d'_' -f 2))
+
 case $1 in
 snap)
 	command_snap "${@:2}"
